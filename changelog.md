@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.0.8 (March 9, 2025)
+
++ Added option to skip feeds while scanning.
+
 ## v0.0.7 (January 27, 2025)
 
 + Added flag for checking internal links only

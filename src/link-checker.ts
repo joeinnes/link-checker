@@ -23,7 +23,7 @@ import { LinkChecker } from "linkinator";
 import path from 'path';
 import prompts, { PromptObject } from 'prompts';
 // https://iamwebwiz.medium.com/how-to-fix-dirname-is-not-defined-in-es-module-scope-34d94a86694d
-import { fileURLToPath } from 'url';
+import url from 'url';
 
 type ConfigObject = {
   siteUrl: string;
@@ -268,7 +268,7 @@ console.log(boxen(APP_NAME, { padding: 1 }));
 console.log(`\n${APP_AUTHOR}\n`);
 
 // https://iamwebwiz.medium.com/how-to-fix-dirname-is-not-defined-in-es-module-scope-34d94a86694d
-const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
+const __filename = url.fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
 
 // do we have command-line arguments?
@@ -340,16 +340,20 @@ let checkerOptions: any = {
   recurse: true,
   timeout: config.timeoutValue
 };
+
 // Added v0.0.7 & v0.0.8
+// do we need any special processing for urls?
 if (config.internalLinksOnly || config.skipFeeds) {
   // Added v0.0.8
+
+  // if (config.internalLinksOnly) {
+  //   // add the internal links
+  //   skipArray.push(config.siteUrl);
+  //   skipArray.push('/');
+  // }
+
   // empty array of urls to skip
   let skipArray: string[] = [];
-  if (config.internalLinksOnly) {
-    // add the internal links
-    skipArray.push(config.siteUrl);
-    skipArray.push('/');
-  }
   if (config.skipFeeds) {
     // add the feed URLs
     skipArray.push('/feed');
@@ -359,19 +363,28 @@ if (config.internalLinksOnly || config.skipFeeds) {
     skipArray.push('/atom');
     skipArray.push(`${config.siteUrl}/atom`);
   }
-
-  console.dir(skipArray);
+  if (debugMode) console.dir(skipArray);
 
   /* linksToSkip (array | function) - An array of regular expression strings that should be skipped, OR an async function that's called for each link with the link URL as its only argument. Return a Promise that resolves to true to skip the link or false to check it. */
   checkerOptions.linksToSkip = async (url: string) => {
     return new Promise((resolve) => {
-      // Skip anything that isn't an internal link
-      resolve(!skipArray.some(skipStr => url.toLowerCase().startsWith(skipStr.toLowerCase())));
-    });
-
-    // return !url.startsWith(config.siteUrl) && !url.startsWith('/');
-    // let res: string[] = skipArray.filter(s => url.startsWith(s));
-    // return skipArray.some(urlPart => url.startsWith(urlPart));
+      let result: boolean;
+      if (config.internalLinksOnly) {
+        // then we only care about local links
+        // The following code has to look weird since we want a false
+        // result if the URL starts with the site URL or a slash,
+        // so we negate each of those checks
+        result = !url.startsWith(config.siteUrl) && !url.startsWith('/');
+      } else {
+        result = false;
+      }
+      // Now, do we want to skip feed URLs?
+      if (config.skipFeeds) {
+        // Then check the URL against the skip array
+        result = result || skipArray.some(skipStr => url.toLowerCase().startsWith(skipStr.toLowerCase()));
+      }
+      resolve(result);
+    });    
   }
 }
 

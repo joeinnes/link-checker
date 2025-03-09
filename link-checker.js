@@ -6,7 +6,7 @@ import fs from 'fs';
 import { LinkChecker } from "linkinator";
 import path from 'path';
 import prompts from 'prompts';
-import { fileURLToPath } from 'url';
+import url from 'url';
 var LinkState;
 (function (LinkState) {
     LinkState["BROKEN"] = "BROKEN";
@@ -189,7 +189,7 @@ function writeFileSection(outputFormat, sectionHeader, section) {
 }
 console.log(boxen(APP_NAME, { padding: 1 }));
 console.log(`\n${APP_AUTHOR}\n`);
-const __filename = fileURLToPath(import.meta.url);
+const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const myArgs = process.argv.slice(2);
 if (myArgs.includes('-?') || myArgs.includes('/?'))
@@ -249,10 +249,6 @@ let checkerOptions = {
 };
 if (config.internalLinksOnly || config.skipFeeds) {
     let skipArray = [];
-    if (config.internalLinksOnly) {
-        skipArray.push(config.siteUrl);
-        skipArray.push('/');
-    }
     if (config.skipFeeds) {
         skipArray.push('/feed');
         skipArray.push(`${config.siteUrl}/feed`);
@@ -261,10 +257,21 @@ if (config.internalLinksOnly || config.skipFeeds) {
         skipArray.push('/atom');
         skipArray.push(`${config.siteUrl}/atom`);
     }
-    console.dir(skipArray);
+    if (debugMode)
+        console.dir(skipArray);
     checkerOptions.linksToSkip = async (url) => {
         return new Promise((resolve) => {
-            resolve(!skipArray.some(skipStr => url.toLowerCase().startsWith(skipStr.toLowerCase())));
+            let result;
+            if (config.internalLinksOnly) {
+                result = !url.startsWith(config.siteUrl) && !url.startsWith('/');
+            }
+            else {
+                result = false;
+            }
+            if (config.skipFeeds) {
+                result = result || skipArray.some(skipStr => url.toLowerCase().startsWith(skipStr.toLowerCase()));
+            }
+            resolve(result);
         });
     };
 }
